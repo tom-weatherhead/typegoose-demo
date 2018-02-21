@@ -1,0 +1,19 @@
+{
+  "name": "typegoose-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "c": "tsc --target es6 --experimentalDecorators --emitDecoratorMetadata --moduleResolution Node main.ts",
+    "start": "node main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {},
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "typegoose": "^3.9.0"
+  }
+}
