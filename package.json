@@ -1,7 +1,7 @@
 {
   "name": "typegoose-demo",
   "version": "1.0.0",
-  "description": "",
+  "description": "An example usage of Typegoose: TypeScript + Mongoose (a model provider for MongoDB)",
   "main": "index.js",
   "homepage": "https://github.com/tom-weatherhead/typegoose-demo#readme",
   "repository": {
