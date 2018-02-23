@@ -9,54 +9,90 @@ import { fromPromise } from 'rxjs/observable/fromPromise';
 require('mongoose').Promise = require('bluebird');
 
 export class UniversityClass extends Typegoose {
-  // @prop({ required: true, index: true, unique: true }) _id: ?;
-  @prop({ required: true, index: true, unique: true }) id: number;
-  @prop({ required: true }) name: string;
-  @prop({ required: true }) shortName: string;
-  @prop({ required: true }) numUndergraduateStudents: number;
-  @prop({ required: true }) percentWhite: number;
-  @prop({ required: true }) percentBlack: number;
-  @prop({ required: true }) percentHispanic: number;
-  @prop({ required: true }) percentAsian: number;
-  @prop({ required: true }) percentAmericanNative: number;
-  @prop({ required: true }) percentPacificIslander: number;
-  @prop({ required: true }) percentMultipleRaces: number;
-  @prop({ required: true }) percentNonResidentAlien: number;
-  @prop({ required: true }) percentUnknown: number;
+	@prop({ required: true }) _id: mongoose.Types.ObjectId;
+	@prop({ required: true, index: true, unique: true }) id: number;
+	@prop({ required: true }) name: string;
+	@prop({ required: true }) shortName: string;
+	@prop({ required: true }) numUndergraduateStudents: number;
+	@prop({ required: true }) percentWhite: number;
+	@prop({ required: true }) percentBlack: number;
+	@prop({ required: true }) percentHispanic: number;
+	@prop({ required: true }) percentAsian: number;
+	@prop({ required: true }) percentAmericanNative: number;
+	@prop({ required: true }) percentPacificIslander: number;
+	@prop({ required: true }) percentMultipleRaces: number;
+	@prop({ required: true }) percentNonResidentAlien: number;
+	@prop({ required: true }) percentUnknown: number;
 }
 
 const UniversityModel = new UniversityClass().getModelForClass(UniversityClass, { schemaOptions: { collection: 'universities' } });
 
 export type University = InstanceType<UniversityClass>;
 
+// TODO: Use this as the basis of a class template TypegooseModelService<T> that implements these methods:
+// - connectToDatabase
+// - disconnectFromDatabase
+// - findByCriteria
+// - findByKeyAndValue
+// - findOneByKeyAndValue
+// - findOne
+// - findAll
+// - findById
+
 export class UniversityService {
 	connectToDatabase(): Observable<any> {
-		const url = 'mongodb://localhost:27017/virginia-tech-20170810';
-		const options = {
-			useMongoClient: true
-		};
+		return Observable.create(observer => {
+			const url = 'mongodb://localhost:27017/virginia-tech-20170810';
+			const options = {
+				useMongoClient: true
+			};
 
-		return fromPromise(mongoose.connect(url, options));
-	}
+			mongoose.connect(url, options)
+				.then(() => {
+					console.log('Connected to the database.');
+					observer.next(undefined);
+					observer.complete();
+				})
+				.catch(error => {
+					console.error('Error: Failed to connect to the database:', error);
+					observer.error(error);
+				});
+		});
+	 }
 
 	disconnectFromDatabase(): Observable<any> {
-		return fromPromise(mongoose.disconnect());
+		return Observable.create(observer => {
+			mongoose.disconnect()
+				.then(() => {
+					console.log('Disconnected from the database.');
+					observer.next(undefined);
+					observer.complete();
+				})
+				.catch(error => {
+					console.error('Error: Failed to disconnect from the database:', error);
+					observer.error(error);
+				});
+		});
 	}
 
-	/*
-	findOneTest(id: number): Observable<University> {
-		//UniversityModel.find({ 'id': Number(id) })
-		//UniversityModel.find({ _id: Number(5a8dac8d585286071c085ccf) })
+	// TomW 2018-02-22 : UniversityModel.find({ key }) works when the key is a string, but not when it is a number.
+	// E.g. This works:			return fromPromise(UniversityModel.find({ shortName: 'Virginia Tech' }));
+	// But this does not work:	return fromPromise(UniversityModel.find({ numUndergraduateStudents: 24191 }));
 
-		// UniversityModel.find({ 'numUndergraduateStudents': 24191 })
-			// .then(result => {
-				// console.log('findOneTest() result:', result);
-			// }, error => {
-				// console.error('findOneTest() error:', error);
-			// });
-		return fromPromise(UniversityModel.find({ numUndergraduateStudents: 24191 }));
+	findByCriteria(criteria: any): Observable<University[]> {
+		return fromPromise(UniversityModel.find(criteria));
 	}
-	*/
+
+	findByKeyAndValue(key: string, value: any): Observable<University[]> {
+		return this.findByCriteria({ $expr: { $eq: [ "$" + key, value.toString() ] } });
+	}
+
+	findOneByKeyAndValue(key: string, value: any): Observable<University> {
+		return this.findByKeyAndValue(key, value)
+			.switchMap(universities => {
+				return Observable.of(universities.shift());
+			});
+	}
 
 	findOne(): Observable<University> {
 		return fromPromise(UniversityModel.findOne());
@@ -69,9 +105,6 @@ export class UniversityService {
 	findById(id: number): Observable<University> {
 		return this.findAll()
 			.switchMap(universities => {
-				// let filteredUniversities = universities.filter(university => university.id === id);
-				// return Observable.of(filteredUniversities.length > 0 ? filteredUniversities[0] : null);
-				
 				// The default return value of Array.find() is undefined, not null.
 				return Observable.of(universities.find(university => university.id === id));
 			});
@@ -84,32 +117,112 @@ let universityService = new UniversityService();
 
 universityService.connectToDatabase()
 	.switchMap(() => {
-		console.log('Connected to the database.');
 		return universityService.findOne();
 	})
 	.switchMap(university => {
 		console.log();
-		console.log('University:', university);
-		console.log('University Id:', university.id);
-		console.log('University name:', university.name);
-		console.log('University short name:', university.shortName);
+		console.log('findOne() : University:', university);
+		
+		if (university) {
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+
 		return universityService.findAll();
 	})
 	.switchMap(universities => {
 		console.log();
-		console.log('Universities: ', universities);
+		console.log('findAll() : Universities: ', universities);
 		console.log('Number of universities: ', universities.length);
 		return universityService.findById(3);
 	})
 	.switchMap(university => {
 		console.log();
-		console.log('University:', university);
-		console.log('University Id:', university.id);
-		console.log('University name:', university.name);
-		console.log('University short name:', university.shortName);
+		console.log('findById(3) : University:', university);
+		
+		if (university) {
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+
+		return universityService.findByCriteria({ shortName: 'Virginia Tech' });
+	})
+	.switchMap(universities => {
+		console.log();
+		console.log('findByCriteria(shortName) : Found', universities.length, 'result(s).');
+		
+		if (universities.length > 0) {
+			let university = universities[0];
+
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+		
+		const key: string = 'shortName';
+		const value: string = 'Virginia Tech';
+		
+		return universityService.findByKeyAndValue(key, value);
+	})
+	.switchMap(universities => {
+		console.log();
+		console.log('findByKeyAndValue(shortName) : Found', universities.length, 'result(s).');
+		
+		if (universities.length > 0) {
+			let university = universities[0];
+
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+		
+		const key: string = 'numUndergraduateStudents';
+		const value: number = 24191;
+		
+		return universityService.findByKeyAndValue(key, value);
+	})
+	.switchMap(universities => {
+		console.log();
+		console.log('findByKeyAndValue(numUndergraduateStudents) : Found', universities.length, 'result(s).');
+		
+		if (universities.length > 0) {
+			let university = universities[0];
+
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+		
+		const key: string = 'numUndergraduateStudents';
+		const value: number = 24191;
+		
+		return universityService.findOneByKeyAndValue(key, value);
+	})
+	.switchMap(university => {
+		console.log();
+		console.log('findOneByKeyAndValue(numUndergraduateStudents) : University:', university);
+		
+		if (university) {
+			console.log('University Id:', university.id);
+			console.log('University name:', university.name);
+			console.log('University short name:', university.shortName);
+		}
+
+		console.log();
 		return universityService.disconnectFromDatabase();
 	})
-	.switchMap(() => {
-		console.log();
-		console.log('Disconnected from the database.');
-	});
+	// Observable.subscribe(onNext, onError, onCompleted) ; see http://reactivex.io/documentation/operators/subscribe.html
+	.subscribe(
+		() => {
+			console.log();
+			console.log('subscribe() : onNext()');
+		},
+		error => {
+			console.error('subscribe() : Caught an error:', error);
+		},
+		() => {
+			console.log('subscribe() : onCompleted()');
+		}
+	);
